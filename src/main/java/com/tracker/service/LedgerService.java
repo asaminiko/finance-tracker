@@ -134,6 +134,11 @@ public class LedgerService implements LedgerQueries {
         return transactions.interestByMonth(productId);
     }
 
+    @Override
+    public Map<String, BigDecimal> sumByCategory(TransactionType kind, LocalDate from, LocalDate to) {
+        return transactions.sumByCategory(kind, from, to);
+    }
+
     public Category createCategory(CategoryRequest request) {
         String name = Validation.requireText(request.name(), "Назва категорії не може бути порожньою");
         requireMaxLength(name, 40, "Назва категорії не може перевищувати 40 символів");

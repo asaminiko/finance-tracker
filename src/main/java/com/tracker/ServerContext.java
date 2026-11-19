@@ -15,6 +15,7 @@ import com.tracker.repo.TransactionManager;
 import com.tracker.repo.TransactionRepository;
 import com.tracker.service.DepositService;
 import com.tracker.service.LedgerService;
+import com.tracker.service.ReportService;
 import java.time.Clock;
 
 public class ServerContext {
@@ -27,6 +28,7 @@ public class ServerContext {
     public final FlyweightFactory flyweights;
     public final LedgerService ledger;
     public final DepositService deposit;
+    public final ReportService report;
 
     public ServerContext(Config config, Clock clock) {
         this.config = config;
@@ -46,5 +48,6 @@ public class ServerContext {
         this.ledger = new LedgerService(
                 accounts, categories, transactions, flyweights, receipts, scans, templates, funds, clock);
         this.deposit = new DepositService(products, ledger, ledger, config.interestTaxRate(), clock);
+        this.report = new ReportService(ledger);
     }
 }

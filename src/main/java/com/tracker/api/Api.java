@@ -10,6 +10,7 @@ import com.tracker.repo.Database;
 import com.tracker.repo.TransactionManager;
 import com.tracker.service.DepositService;
 import com.tracker.service.LedgerService;
+import com.tracker.service.ReportService;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ContributionRequest;
@@ -37,6 +38,7 @@ public class Api {
 
     private final LedgerService ledger;
     private final DepositService deposit;
+    private final ReportService report;
     private final Database db;
     private final TransactionManager txManager;
     private final Gson gson;
@@ -44,11 +46,13 @@ public class Api {
     public Api(
             LedgerService ledger,
             DepositService deposit,
+            ReportService report,
             Database db,
             TransactionManager txManager,
             Gson gson) {
         this.ledger = ledger;
         this.deposit = deposit;
+        this.report = report;
         this.db = db;
         this.txManager = txManager;
         this.gson = gson;
@@ -127,6 +131,13 @@ public class Api {
         app.get("/products/{id}/reconciliation", tx(ctx -> {
             long id = parseId(ctx.pathParam("id"));
             ctx.json(deposit.reconcile(id));
+        }));
+
+        app.get("/reports/category", tx(ctx -> {
+            String kind = ctx.queryParam("kind");
+            LocalDate from = parseDate(ctx.queryParam("from"));
+            LocalDate to = parseDate(ctx.queryParam("to"));
+            ctx.json(report.categoryReport(kind, from, to));
         }));
 
         app.exception(ValidationException.class, (e, ctx) -> error(ctx, HttpStatus.BAD_REQUEST, "VALIDATION", e));

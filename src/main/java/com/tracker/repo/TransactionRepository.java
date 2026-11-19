@@ -103,6 +103,31 @@ public class TransactionRepository {
         }
     }
 
+    public Map<String, BigDecimal> sumByCategory(TransactionType kind, LocalDate from, LocalDate to) {
+        try (PreparedStatement ps = txManager.current().prepareStatement(
+                "SELECT c.name AS category_name, SUM(ABS(t.amount_kopecks)) AS total_kopecks "
+                        + "FROM transactions t "
+                        + "JOIN category c ON c.id = t.category_id "
+                        + "WHERE t.type_code = ? AND t.date >= ? AND t.date <= ? "
+                        + "GROUP BY c.id, c.name "
+                        + "ORDER BY total_kopecks DESC, c.name ASC")) {
+            ps.setString(1, kind.name());
+            ps.setString(2, from == null ? MIN_DATE : from.toString());
+            ps.setString(3, to == null ? MAX_DATE : to.toString());
+            Map<String, BigDecimal> result = new LinkedHashMap<>();
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.put(
+                            rs.getString("category_name"),
+                            BigDecimal.valueOf(rs.getLong("total_kopecks"), 2));
+                }
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new StorageException("Не вдалося побудувати звіт за категоріями: " + e.getMessage(), e);
+        }
+    }
+
     private Transaction map(ResultSet rs) throws SQLException {
         Category category = categories.resolve(rs.getLong("category_id"));
         Account account = new Account(

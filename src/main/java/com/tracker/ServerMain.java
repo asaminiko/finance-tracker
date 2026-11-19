@@ -15,7 +15,12 @@ public class ServerMain {
             context.database.init();
             context.database.inTx(context.ledger::runTemplates);
             Api api = new Api(
-                    context.ledger, context.deposit, context.database, context.txManager, context.gson);
+                    context.ledger,
+                    context.deposit,
+                    context.report,
+                    context.database,
+                    context.txManager,
+                    context.gson);
             Javalin app = api.create();
             app.start("127.0.0.1", config.serverPort());
         } catch (Exception e) {
