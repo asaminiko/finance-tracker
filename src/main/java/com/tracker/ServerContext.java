@@ -6,11 +6,13 @@ import com.tracker.domain.FlyweightFactory;
 import com.tracker.repo.AccountRepository;
 import com.tracker.repo.CategoryRepository;
 import com.tracker.repo.Database;
+import com.tracker.repo.ProductRepository;
 import com.tracker.repo.ReceiptRepository;
 import com.tracker.repo.ScanStore;
 import com.tracker.repo.TemplateRepository;
 import com.tracker.repo.TransactionManager;
 import com.tracker.repo.TransactionRepository;
+import com.tracker.service.DepositService;
 import com.tracker.service.LedgerService;
 import java.time.Clock;
 
@@ -23,6 +25,7 @@ public class ServerContext {
     public final Database database;
     public final FlyweightFactory flyweights;
     public final LedgerService ledger;
+    public final DepositService deposit;
 
     public ServerContext(Config config, Clock clock) {
         this.config = config;
@@ -37,7 +40,9 @@ public class ServerContext {
         ReceiptRepository receipts = new ReceiptRepository(txManager);
         ScanStore scans = new ScanStore(config.scansDir());
         TemplateRepository templates = new TemplateRepository(txManager, categories);
+        ProductRepository products = new ProductRepository(txManager);
         this.ledger = new LedgerService(
                 accounts, categories, transactions, flyweights, receipts, scans, templates, clock);
+        this.deposit = new DepositService(products, ledger, ledger, config.interestTaxRate(), clock);
     }
 }

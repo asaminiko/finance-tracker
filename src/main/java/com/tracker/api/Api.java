@@ -8,10 +8,13 @@ import com.tracker.domain.StorageException;
 import com.tracker.domain.ValidationException;
 import com.tracker.repo.Database;
 import com.tracker.repo.TransactionManager;
+import com.tracker.service.DepositService;
 import com.tracker.service.LedgerService;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ErrorResponse;
+import com.tracker.service.dto.InterestRequest;
+import com.tracker.service.dto.ProductRequest;
 import com.tracker.service.dto.ReceiptRequest;
 import com.tracker.service.dto.ScanContent;
 import com.tracker.service.dto.TemplateRequest;
@@ -31,12 +34,19 @@ public class Api {
     private static final long MAX_REQUEST_SIZE = 10L * 1024 * 1024;
 
     private final LedgerService ledger;
+    private final DepositService deposit;
     private final Database db;
     private final TransactionManager txManager;
     private final Gson gson;
 
-    public Api(LedgerService ledger, Database db, TransactionManager txManager, Gson gson) {
+    public Api(
+            LedgerService ledger,
+            DepositService deposit,
+            Database db,
+            TransactionManager txManager,
+            Gson gson) {
         this.ledger = ledger;
+        this.deposit = deposit;
         this.db = db;
         this.txManager = txManager;
         this.gson = gson;
@@ -86,6 +96,25 @@ public class Api {
         }));
         app.get("/templates", tx(ctx -> ctx.json(ledger.listTemplates())));
         app.post("/templates/run", tx(ctx -> ctx.json(ledger.runTemplates())));
+
+        app.post("/products", tx(ctx -> {
+            ProductRequest request = parseBody(ctx, ProductRequest.class);
+            ctx.status(HttpStatus.CREATED).json(deposit.createProduct(request));
+        }));
+        app.get("/products", tx(ctx -> ctx.json(deposit.listProducts())));
+        app.post("/products/{id}/interest", tx(ctx -> {
+            long id = parseId(ctx.pathParam("id"));
+            InterestRequest request = parseBody(ctx, InterestRequest.class);
+            ctx.status(HttpStatus.CREATED).json(deposit.recordInterest(id, request));
+        }));
+        app.post("/products/{id}/close", tx(ctx -> {
+            long id = parseId(ctx.pathParam("id"));
+            ctx.json(deposit.closeProduct(id));
+        }));
+        app.get("/products/{id}/reconciliation", tx(ctx -> {
+            long id = parseId(ctx.pathParam("id"));
+            ctx.json(deposit.reconcile(id));
+        }));
 
         app.exception(ValidationException.class, (e, ctx) -> error(ctx, HttpStatus.BAD_REQUEST, "VALIDATION", e));
         app.exception(NotFoundException.class, (e, ctx) -> error(ctx, HttpStatus.NOT_FOUND, "NOT_FOUND", e));

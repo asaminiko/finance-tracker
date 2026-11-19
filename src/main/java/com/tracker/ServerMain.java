@@ -14,7 +14,8 @@ public class ServerMain {
             ServerContext context = new ServerContext(config, Clock.systemDefaultZone());
             context.database.init();
             context.database.inTx(context.ledger::runTemplates);
-            Api api = new Api(context.ledger, context.database, context.txManager, context.gson);
+            Api api = new Api(
+                    context.ledger, context.deposit, context.database, context.txManager, context.gson);
             Javalin app = api.create();
             app.start("127.0.0.1", config.serverPort());
         } catch (Exception e) {
