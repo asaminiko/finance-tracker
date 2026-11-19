@@ -15,7 +15,9 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TransactionRepository {
 
@@ -79,6 +81,25 @@ public class TransactionRepository {
             return result;
         } catch (SQLException e) {
             throw new StorageException("Не вдалося прочитати транзакції: " + e.getMessage(), e);
+        }
+    }
+
+    public Map<String, BigDecimal> interestByMonth(long productId) {
+        try (PreparedStatement ps = txManager.current().prepareStatement(
+                "SELECT substr(date, 1, 7) AS month, SUM(ABS(amount_kopecks)) AS total_kopecks "
+                        + "FROM transactions "
+                        + "WHERE source_type = 'PRODUCT' AND source_id = ? "
+                        + "GROUP BY substr(date, 1, 7)")) {
+            ps.setLong(1, productId);
+            Map<String, BigDecimal> result = new LinkedHashMap<>();
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.put(rs.getString("month"), BigDecimal.valueOf(rs.getLong("total_kopecks"), 2));
+                }
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new StorageException("Не вдалося прочитати відсотки за продуктом: " + e.getMessage(), e);
         }
     }
 

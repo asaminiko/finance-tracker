@@ -67,6 +67,22 @@ public class CategoryRepository {
                 .orElseThrow(() -> new NotFoundException("Категорію не знайдено")));
     }
 
+    public Category findByName(String name) {
+        try (PreparedStatement ps = txManager.current().prepareStatement(
+                "SELECT id, name, is_system FROM category WHERE name = ?")) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new NotFoundException("Категорію не знайдено: " + name);
+                }
+                Category category = map(rs);
+                return flyweights.category(category.id(), () -> category);
+            }
+        } catch (SQLException e) {
+            throw new StorageException("Не вдалося прочитати категорію: " + e.getMessage(), e);
+        }
+    }
+
     private static Category map(ResultSet rs) throws SQLException {
         return new Category(rs.getLong("id"), rs.getString("name"), rs.getInt("is_system") != 0);
     }

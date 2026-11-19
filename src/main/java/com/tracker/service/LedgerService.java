@@ -40,9 +40,10 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
-public class LedgerService {
+public class LedgerService implements LedgerQueries {
 
     private static final int MAX_SCAN_BYTES = 5 * 1024 * 1024;
 
@@ -96,6 +97,32 @@ public class LedgerService {
             total = total.add(item.balance());
         }
         return new BalancesResponse(items, total);
+    }
+
+    public Account requireAccount(long accountId) {
+        return accounts.find(accountId)
+                .orElseThrow(() -> new NotFoundException("Рахунок не знайдено"));
+    }
+
+    public TransactionView recordSystemTransaction(
+            Account account,
+            String systemCategoryName,
+            TransactionType type,
+            BigDecimal signedAmount,
+            LocalDate date,
+            String description,
+            SourceType sourceType,
+            Long sourceId) {
+        Category category = categories.findByName(systemCategoryName);
+        Transaction transaction = new Transaction(
+                null, date, signedAmount, account, category, description, type, sourceType, sourceId);
+        long id = transactions.insert(transaction);
+        return view(id, transaction);
+    }
+
+    @Override
+    public Map<String, BigDecimal> interestByMonth(long productId) {
+        return transactions.interestByMonth(productId);
     }
 
     public Category createCategory(CategoryRequest request) {
