@@ -6,8 +6,12 @@ import com.tracker.domain.Category;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.BalancesResponse;
 import com.tracker.service.dto.CategoryRequest;
+import com.tracker.service.dto.InterestRequest;
+import com.tracker.service.dto.ProductRequest;
+import com.tracker.service.dto.ProductView;
 import com.tracker.service.dto.ReceiptRequest;
 import com.tracker.service.dto.ReceiptView;
+import com.tracker.service.dto.ReconciliationResponse;
 import com.tracker.service.dto.TemplateRequest;
 import com.tracker.service.dto.TemplateRunResponse;
 import com.tracker.service.dto.TemplateView;
@@ -27,6 +31,8 @@ public class ApiClient {
     private static final Type RECEIPT_LIST = new TypeToken<List<ReceiptView>>() {
     }.getType();
     private static final Type TEMPLATE_LIST = new TypeToken<List<TemplateView>>() {
+    }.getType();
+    private static final Type PRODUCT_LIST = new TypeToken<List<ProductView>>() {
     }.getType();
 
     private final HttpGateway gateway;
@@ -77,6 +83,26 @@ public class ApiClient {
 
     public TemplateRunResponse runTemplates() {
         return gateway.post("/templates/run", Map.of(), TemplateRunResponse.class);
+    }
+
+    public ProductView createProduct(ProductRequest request) {
+        return gateway.post("/products", request, ProductView.class);
+    }
+
+    public List<ProductView> products() {
+        return gateway.get("/products", PRODUCT_LIST);
+    }
+
+    public TransactionView recordInterest(long productId, InterestRequest request) {
+        return gateway.post("/products/" + productId + "/interest", request, TransactionView.class);
+    }
+
+    public ProductView closeProduct(long productId) {
+        return gateway.post("/products/" + productId + "/close", Map.of(), ProductView.class);
+    }
+
+    public ReconciliationResponse reconciliation(long productId) {
+        return gateway.get("/products/" + productId + "/reconciliation", ReconciliationResponse.class);
     }
 
     public TransactionsResponse transactions(LocalDate from, LocalDate to) {
