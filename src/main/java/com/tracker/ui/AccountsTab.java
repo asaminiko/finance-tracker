@@ -8,6 +8,8 @@ import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.BalanceItem;
 import com.tracker.service.dto.BalancesResponse;
 import com.tracker.service.dto.CategoryRequest;
+import com.tracker.service.dto.TemplateRequest;
+import com.tracker.service.dto.TemplateView;
 import com.tracker.service.dto.TransactionRequest;
 import com.tracker.service.dto.TransactionView;
 import java.math.BigDecimal;
@@ -17,11 +19,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -53,6 +57,7 @@ public class AccountsTab {
 
     private final TreeTableView<BalanceRow> balanceTree = new TreeTableView<>();
     private final Label totalLabel = new Label("Загальний підсумок: -");
+    private final TableView<TemplateView> templateTable = new TableView<>();
     private final DatePicker fromPicker = new DatePicker();
     private final DatePicker toPicker = new DatePicker();
     private final TableView<TransactionView> transactionTable = new TableView<>();
@@ -75,6 +80,7 @@ public class AccountsTab {
     public void refreshAll() {
         loadBalances();
         loadCategories();
+        loadTemplates();
         loadTransactions();
     }
 
@@ -87,20 +93,41 @@ public class AccountsTab {
         addCategory.setOnAction(e -> showCategoryDialog());
         Button addTransaction = new Button("Додати транзакцію");
         addTransaction.setOnAction(e -> showTransactionDialog());
+        Button addTemplate = new Button("Додати шаблон");
+        addTemplate.setOnAction(e -> showTemplateDialog());
+        Button runTemplates = new Button("Виконати зараз");
+        runTemplates.setOnAction(e -> runTemplatesNow());
         Button refresh = new Button("Оновити");
         refresh.setOnAction(e -> refreshAll());
-        HBox actions = new HBox(8, addAccount, addCategory, addTransaction, refresh);
+        HBox actions = new HBox(8, addAccount, addCategory, addTransaction, addTemplate, runTemplates, refresh);
 
         TreeTableColumn<BalanceRow, String> nameColumn = new TreeTableColumn<>("Власник / рахунок");
-        nameColumn.setPrefWidth(420);
+        nameColumn.setPrefWidth(210);
         nameColumn.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getValue().label()));
         TreeTableColumn<BalanceRow, String> amountColumn = new TreeTableColumn<>("Залишок, UAH");
-        amountColumn.setPrefWidth(200);
+        amountColumn.setPrefWidth(120);
         amountColumn.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getValue().amount()));
         balanceTree.getColumns().add(nameColumn);
         balanceTree.getColumns().add(amountColumn);
         balanceTree.setShowRoot(false);
-        balanceTree.setPrefHeight(220);
+        balanceTree.setPrefHeight(210);
+
+        templateTable.getColumns().add(textColumn("Назва", 110, TemplateView::name));
+        templateTable.getColumns().add(textColumn("Рахунок", 110, TemplateView::account));
+        templateTable.getColumns().add(textColumn("Категорія", 110, TemplateView::category));
+        templateTable.getColumns().add(textColumn("Сума, UAH", 95, t -> money(t.amount())));
+        templateTable.getColumns().add(textColumn("День", 50, t -> String.valueOf(t.dayOfMonth())));
+        templateTable.getColumns().add(textColumn("Наступна дата", 100, t -> t.nextRunDate().toString()));
+        templateTable.getColumns().add(textColumn("Опис", 120, TemplateView::description));
+        templateTable.setPrefHeight(210);
+
+        VBox balancesBox = new VBox(6, new Label("Залишки по рахунках"), balanceTree, totalLabel);
+        balancesBox.setPrefWidth(340);
+        VBox.setVgrow(balanceTree, Priority.ALWAYS);
+        VBox templatesBox = new VBox(6, new Label("Періодичні шаблони"), templateTable);
+        VBox.setVgrow(templateTable, Priority.ALWAYS);
+        HBox.setHgrow(templatesBox, Priority.ALWAYS);
+        HBox topPane = new HBox(10, balancesBox, templatesBox);
 
         fromPicker.setPromptText("Від");
         fromPicker.setEditable(false);
@@ -125,14 +152,11 @@ public class AccountsTab {
         transactionTable.getColumns().add(textColumn("Опис", 260, TransactionView::description));
         VBox.setVgrow(transactionTable, Priority.ALWAYS);
 
-        root.getChildren().addAll(
-                actions, new Label("Залишки по рахунках"), balanceTree, totalLabel,
-                filter, transactionTable);
+        root.getChildren().addAll(actions, topPane, filter, transactionTable);
     }
 
-    private TableColumn<TransactionView, String> textColumn(
-            String title, double width, java.util.function.Function<TransactionView, String> getter) {
-        TableColumn<TransactionView, String> column = new TableColumn<>(title);
+    private <T> TableColumn<T, String> textColumn(String title, double width, Function<T, String> getter) {
+        TableColumn<T, String> column = new TableColumn<>(title);
         column.setPrefWidth(width);
         column.setCellValueFactory(c -> new SimpleStringProperty(getter.apply(c.getValue())));
         return column;
@@ -144,6 +168,11 @@ public class AccountsTab {
 
     private void loadCategories() {
         async.run(api::categories, list -> categories = list, ErrorHandler::show);
+    }
+
+    private void loadTemplates() {
+        async.run(api::templates, list -> templateTable.setItems(FXCollections.observableArrayList(list)),
+                ErrorHandler::show);
     }
 
     private void loadTransactions() {
@@ -205,13 +234,8 @@ public class AccountsTab {
     }
 
     private void showTransactionDialog() {
-        if (accounts.isEmpty()) {
-            ErrorHandler.show(new ValidationException("Спершу створіть рахунок"));
-            return;
-        }
-        List<Category> userCategories = categories.stream().filter(c -> !c.isSystem()).toList();
+        List<Category> userCategories = requireAccountsAndCategories();
         if (userCategories.isEmpty()) {
-            ErrorHandler.show(new ValidationException("Спершу створіть категорію"));
             return;
         }
         DatePicker date = new DatePicker();
@@ -253,6 +277,74 @@ public class AccountsTab {
                 loadTransactions();
             }, ErrorHandler::show);
         });
+    }
+
+    private void showTemplateDialog() {
+        List<Category> userCategories = requireAccountsAndCategories();
+        if (userCategories.isEmpty()) {
+            return;
+        }
+        TextField name = limited(60);
+        ComboBox<BalanceItem> account = new ComboBox<>(FXCollections.observableArrayList(accounts));
+        account.setConverter(converter(BalanceItem::name));
+        ComboBox<Category> category = new ComboBox<>(FXCollections.observableArrayList(userCategories));
+        category.setConverter(converter(Category::name));
+        TextField amount = new TextField();
+        DatePicker nextRunDate = new DatePicker();
+        nextRunDate.setEditable(false);
+        TextField description = limited(120);
+        GridPane grid = grid();
+        grid.addRow(0, new Label("Назва:"), name);
+        grid.addRow(1, new Label("Рахунок:"), account);
+        grid.addRow(2, new Label("Категорія:"), category);
+        grid.addRow(3, new Label("Сума (+ дохід / - витрата):"), amount);
+        grid.addRow(4, new Label("Наступна дата:"), nextRunDate);
+        grid.addRow(5, new Label("Опис:"), description);
+        confirm("Новий шаблон", grid, () -> {
+            if (account.getValue() == null) {
+                throw new ValidationException("Оберіть рахунок");
+            }
+            if (category.getValue() == null) {
+                throw new ValidationException("Оберіть категорію");
+            }
+            if (nextRunDate.getValue() == null) {
+                throw new ValidationException("Оберіть дату");
+            }
+            TemplateRequest request = new TemplateRequest(
+                    name.getText(),
+                    parseAmount(amount.getText()),
+                    category.getValue().id(),
+                    account.getValue().id(),
+                    description.getText(),
+                    nextRunDate.getValue());
+            async.run(() -> api.createTemplate(request), created -> loadTemplates(), ErrorHandler::show);
+        });
+    }
+
+    private void runTemplatesNow() {
+        async.run(api::runTemplates, response -> {
+            loadTemplates();
+            loadBalances();
+            loadTransactions();
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Періодичні операції");
+            alert.setHeaderText(null);
+            alert.setContentText("Створено транзакцій: " + response.created());
+            alert.showAndWait();
+        }, ErrorHandler::show);
+    }
+
+    private List<Category> requireAccountsAndCategories() {
+        if (accounts.isEmpty()) {
+            ErrorHandler.show(new ValidationException("Спершу створіть рахунок"));
+            return List.of();
+        }
+        List<Category> userCategories = categories.stream().filter(c -> !c.isSystem()).toList();
+        if (userCategories.isEmpty()) {
+            ErrorHandler.show(new ValidationException("Спершу створіть категорію"));
+            return List.of();
+        }
+        return userCategories;
     }
 
     private void confirm(String title, Node content, Runnable onSave) {

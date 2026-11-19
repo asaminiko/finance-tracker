@@ -8,6 +8,9 @@ import com.tracker.service.dto.BalancesResponse;
 import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ReceiptRequest;
 import com.tracker.service.dto.ReceiptView;
+import com.tracker.service.dto.TemplateRequest;
+import com.tracker.service.dto.TemplateRunResponse;
+import com.tracker.service.dto.TemplateView;
 import com.tracker.service.dto.TransactionRequest;
 import com.tracker.service.dto.TransactionView;
 import com.tracker.service.dto.TransactionsResponse;
@@ -15,12 +18,15 @@ import java.lang.reflect.Type;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ApiClient {
 
     private static final Type CATEGORY_LIST = new TypeToken<List<Category>>() {
     }.getType();
     private static final Type RECEIPT_LIST = new TypeToken<List<ReceiptView>>() {
+    }.getType();
+    private static final Type TEMPLATE_LIST = new TypeToken<List<TemplateView>>() {
     }.getType();
 
     private final HttpGateway gateway;
@@ -59,6 +65,18 @@ public class ApiClient {
 
     public byte[] receiptScan(long id) {
         return gateway.getBytes("/receipts/" + id + "/scan");
+    }
+
+    public TemplateView createTemplate(TemplateRequest request) {
+        return gateway.post("/templates", request, TemplateView.class);
+    }
+
+    public List<TemplateView> templates() {
+        return gateway.get("/templates", TEMPLATE_LIST);
+    }
+
+    public TemplateRunResponse runTemplates() {
+        return gateway.post("/templates/run", Map.of(), TemplateRunResponse.class);
     }
 
     public TransactionsResponse transactions(LocalDate from, LocalDate to) {
