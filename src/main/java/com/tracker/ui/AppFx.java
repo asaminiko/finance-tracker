@@ -30,7 +30,15 @@ public class AppFx extends Application {
         AccountsTab accountsTab = new AccountsTab(api, async, status);
         Tab tab = new Tab("Рахунки", accountsTab.view());
         tab.setClosable(false);
-        TabPane tabs = new TabPane(tab);
+        ReceiptsTab receiptsTab = new ReceiptsTab(api, async, accountsTab::refreshAll);
+        Tab receipts = new Tab("Чеки", receiptsTab.view());
+        receipts.setClosable(false);
+        TabPane tabs = new TabPane(tab, receipts);
+        tabs.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (selected == receipts) {
+                receiptsTab.refreshAll();
+            }
+        });
 
         BorderPane root = new BorderPane();
         root.setCenter(tabs);
@@ -40,5 +48,6 @@ public class AppFx extends Application {
         stage.setScene(new Scene(root, 1000, 720));
         stage.show();
         accountsTab.refreshAll();
+        receiptsTab.refreshAll();
     }
 }

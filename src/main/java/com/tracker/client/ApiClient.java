@@ -6,6 +6,8 @@ import com.tracker.domain.Category;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.BalancesResponse;
 import com.tracker.service.dto.CategoryRequest;
+import com.tracker.service.dto.ReceiptRequest;
+import com.tracker.service.dto.ReceiptView;
 import com.tracker.service.dto.TransactionRequest;
 import com.tracker.service.dto.TransactionView;
 import com.tracker.service.dto.TransactionsResponse;
@@ -17,6 +19,8 @@ import java.util.List;
 public class ApiClient {
 
     private static final Type CATEGORY_LIST = new TypeToken<List<Category>>() {
+    }.getType();
+    private static final Type RECEIPT_LIST = new TypeToken<List<ReceiptView>>() {
     }.getType();
 
     private final HttpGateway gateway;
@@ -43,6 +47,18 @@ public class ApiClient {
 
     public TransactionView createTransaction(TransactionRequest request) {
         return gateway.post("/transactions", request, TransactionView.class);
+    }
+
+    public ReceiptView createReceipt(ReceiptRequest request) {
+        return gateway.post("/receipts", request, ReceiptView.class);
+    }
+
+    public List<ReceiptView> receipts() {
+        return gateway.get("/receipts", RECEIPT_LIST);
+    }
+
+    public byte[] receiptScan(long id) {
+        return gateway.getBytes("/receipts/" + id + "/scan");
     }
 
     public TransactionsResponse transactions(LocalDate from, LocalDate to) {

@@ -53,7 +53,19 @@ public class HttpGateway {
         return gson.fromJson(send(request), type);
     }
 
+    public byte[] getBytes(String path) {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .timeout(Duration.ofSeconds(30))
+                .GET()
+                .build();
+        return sendBytes(request);
+    }
+
     private String send(HttpRequest request) {
+        return new String(sendBytes(request), StandardCharsets.UTF_8);
+    }
+
+    private byte[] sendBytes(HttpRequest request) {
         HttpResponse<byte[]> response;
         try {
             response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -65,12 +77,11 @@ public class HttpGateway {
             Thread.currentThread().interrupt();
             throw new StorageException("Запит перервано", e);
         }
-        String body = new String(response.body(), StandardCharsets.UTF_8);
         int status = response.statusCode();
         if (status >= 200 && status < 300) {
-            return body;
+            return response.body();
         }
-        throw toException(status, body);
+        throw toException(status, new String(response.body(), StandardCharsets.UTF_8));
     }
 
     private RuntimeException toException(int status, String body) {
