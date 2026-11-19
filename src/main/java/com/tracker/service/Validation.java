@@ -46,6 +46,14 @@ public final class Validation {
         return result;
     }
 
+    public static BigDecimal nonZeroMoney(BigDecimal value, String missingMessage) {
+        BigDecimal result = money(value, missingMessage);
+        if (result.signum() == 0) {
+            throw new ValidationException("Сума не може дорівнювати нулю");
+        }
+        return result;
+    }
+
     public static LocalDate date(LocalDate value) {
         if (value == null) {
             throw new ValidationException("Оберіть дату");

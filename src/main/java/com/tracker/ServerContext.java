@@ -8,6 +8,7 @@ import com.tracker.repo.CategoryRepository;
 import com.tracker.repo.Database;
 import com.tracker.repo.ReceiptRepository;
 import com.tracker.repo.ScanStore;
+import com.tracker.repo.TemplateRepository;
 import com.tracker.repo.TransactionManager;
 import com.tracker.repo.TransactionRepository;
 import com.tracker.service.LedgerService;
@@ -35,6 +36,8 @@ public class ServerContext {
         TransactionRepository transactions = new TransactionRepository(txManager, categories, flyweights);
         ReceiptRepository receipts = new ReceiptRepository(txManager);
         ScanStore scans = new ScanStore(config.scansDir());
-        this.ledger = new LedgerService(accounts, categories, transactions, flyweights, receipts, scans);
+        TemplateRepository templates = new TemplateRepository(txManager, categories);
+        this.ledger = new LedgerService(
+                accounts, categories, transactions, flyweights, receipts, scans, templates, clock);
     }
 }

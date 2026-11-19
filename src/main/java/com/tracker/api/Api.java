@@ -14,6 +14,7 @@ import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ErrorResponse;
 import com.tracker.service.dto.ReceiptRequest;
 import com.tracker.service.dto.ScanContent;
+import com.tracker.service.dto.TemplateRequest;
 import com.tracker.service.dto.TransactionRequest;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -78,6 +79,13 @@ public class Api {
             ScanContent scan = ledger.receiptScan(parseId(ctx.pathParam("id")));
             ctx.contentType(scan.contentType()).result(scan.bytes());
         }));
+
+        app.post("/templates", tx(ctx -> {
+            TemplateRequest request = parseBody(ctx, TemplateRequest.class);
+            ctx.status(HttpStatus.CREATED).json(ledger.createTemplate(request));
+        }));
+        app.get("/templates", tx(ctx -> ctx.json(ledger.listTemplates())));
+        app.post("/templates/run", tx(ctx -> ctx.json(ledger.runTemplates())));
 
         app.exception(ValidationException.class, (e, ctx) -> error(ctx, HttpStatus.BAD_REQUEST, "VALIDATION", e));
         app.exception(NotFoundException.class, (e, ctx) -> error(ctx, HttpStatus.NOT_FOUND, "NOT_FOUND", e));
