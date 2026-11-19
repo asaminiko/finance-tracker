@@ -3,15 +3,18 @@ package com.tracker.service;
 import com.tracker.domain.Account;
 import com.tracker.domain.Category;
 import com.tracker.domain.FlyweightFactory;
+import com.tracker.domain.Fund;
 import com.tracker.domain.NotFoundException;
 import com.tracker.domain.PrototypeRegistry;
 import com.tracker.domain.RecurringTemplate;
 import com.tracker.domain.SourceType;
+import com.tracker.domain.SystemCategories;
 import com.tracker.domain.Transaction;
 import com.tracker.domain.TransactionType;
 import com.tracker.domain.ValidationException;
 import com.tracker.repo.AccountRepository;
 import com.tracker.repo.CategoryRepository;
+import com.tracker.repo.FundRepository;
 import com.tracker.repo.ReceiptRepository;
 import com.tracker.repo.ScanStore;
 import com.tracker.repo.TemplateRepository;
@@ -20,7 +23,10 @@ import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.BalanceItem;
 import com.tracker.service.dto.BalancesResponse;
 import com.tracker.service.dto.CategoryRequest;
+import com.tracker.service.dto.ContributionRequest;
 import com.tracker.service.dto.FlyweightStats;
+import com.tracker.service.dto.FundRequest;
+import com.tracker.service.dto.FundView;
 import com.tracker.service.dto.ReceiptItemRequest;
 import com.tracker.service.dto.ReceiptItemView;
 import com.tracker.service.dto.ReceiptRequest;
@@ -54,6 +60,7 @@ public class LedgerService implements LedgerQueries {
     private final ReceiptRepository receipts;
     private final ScanStore scans;
     private final TemplateRepository templates;
+    private final FundRepository funds;
     private final Clock clock;
 
     public LedgerService(
@@ -64,6 +71,7 @@ public class LedgerService implements LedgerQueries {
             ReceiptRepository receipts,
             ScanStore scans,
             TemplateRepository templates,
+            FundRepository funds,
             Clock clock) {
         this.accounts = accounts;
         this.categories = categories;
@@ -72,6 +80,7 @@ public class LedgerService implements LedgerQueries {
         this.receipts = receipts;
         this.scans = scans;
         this.templates = templates;
+        this.funds = funds;
         this.clock = clock;
     }
 
@@ -336,6 +345,43 @@ public class LedgerService implements LedgerQueries {
             }
         }
         return new TemplateRunResponse(created);
+    }
+
+    public FundView createFund(FundRequest request) {
+        String name = Validation.requireText(request.name(), "Назва фонду не може бути порожньою");
+        requireMaxLength(name, 60, "Назва фонду не може перевищувати 60 символів");
+        BigDecimal target = Validation.positiveMoney(request.target(), "Вкажіть цільову суму");
+        Fund saved = funds.insert(name, target);
+        return new FundView(
+                saved.id(),
+                saved.name(),
+                saved.target(),
+                BigDecimal.ZERO.setScale(2),
+                BigDecimal.ZERO.setScale(1));
+    }
+
+    public List<FundView> listFunds() {
+        return funds.listWithProgress();
+    }
+
+    public TransactionView contributeToFund(long fundId, ContributionRequest request) {
+        if (request.accountId() == null) {
+            throw new ValidationException("Оберіть рахунок");
+        }
+        BigDecimal amount = Validation.positiveMoney(request.amount(), "Вкажіть суму");
+        Fund fund = funds.find(fundId)
+                .orElseThrow(() -> new NotFoundException("Фонд не знайдено"));
+        Account account = requireAccount(request.accountId());
+        LocalDate today = LocalDate.now(clock);
+        return recordSystemTransaction(
+                account,
+                SystemCategories.FUND_CONTRIBUTION,
+                TransactionType.FUND_CONTRIBUTION,
+                amount.negate(),
+                today,
+                "Внесок у фонд: " + fund.name(),
+                SourceType.FUND,
+                fund.id());
     }
 
     private static TemplateView templateView(RecurringTemplate t) {

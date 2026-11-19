@@ -12,7 +12,9 @@ import com.tracker.service.DepositService;
 import com.tracker.service.LedgerService;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.CategoryRequest;
+import com.tracker.service.dto.ContributionRequest;
 import com.tracker.service.dto.ErrorResponse;
+import com.tracker.service.dto.FundRequest;
 import com.tracker.service.dto.InterestRequest;
 import com.tracker.service.dto.ProductRequest;
 import com.tracker.service.dto.ReceiptRequest;
@@ -96,6 +98,17 @@ public class Api {
         }));
         app.get("/templates", tx(ctx -> ctx.json(ledger.listTemplates())));
         app.post("/templates/run", tx(ctx -> ctx.json(ledger.runTemplates())));
+
+        app.post("/funds", tx(ctx -> {
+            FundRequest request = parseBody(ctx, FundRequest.class);
+            ctx.status(HttpStatus.CREATED).json(ledger.createFund(request));
+        }));
+        app.get("/funds", tx(ctx -> ctx.json(ledger.listFunds())));
+        app.post("/funds/{id}/contribute", tx(ctx -> {
+            long id = parseId(ctx.pathParam("id"));
+            ContributionRequest request = parseBody(ctx, ContributionRequest.class);
+            ctx.status(HttpStatus.CREATED).json(ledger.contributeToFund(id, request));
+        }));
 
         app.post("/products", tx(ctx -> {
             ProductRequest request = parseBody(ctx, ProductRequest.class);

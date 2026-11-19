@@ -6,6 +6,7 @@ import com.tracker.domain.FlyweightFactory;
 import com.tracker.repo.AccountRepository;
 import com.tracker.repo.CategoryRepository;
 import com.tracker.repo.Database;
+import com.tracker.repo.FundRepository;
 import com.tracker.repo.ProductRepository;
 import com.tracker.repo.ReceiptRepository;
 import com.tracker.repo.ScanStore;
@@ -40,9 +41,10 @@ public class ServerContext {
         ReceiptRepository receipts = new ReceiptRepository(txManager);
         ScanStore scans = new ScanStore(config.scansDir());
         TemplateRepository templates = new TemplateRepository(txManager, categories);
+        FundRepository funds = new FundRepository(txManager);
         ProductRepository products = new ProductRepository(txManager);
         this.ledger = new LedgerService(
-                accounts, categories, transactions, flyweights, receipts, scans, templates, clock);
+                accounts, categories, transactions, flyweights, receipts, scans, templates, funds, clock);
         this.deposit = new DepositService(products, ledger, ledger, config.interestTaxRate(), clock);
     }
 }
