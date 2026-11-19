@@ -96,6 +96,7 @@ public class ProductsTab {
         productTable.getColumns().add(textColumn("Закінчення", 95, p -> p.endDate().toString()));
         productTable.getColumns().add(textColumn("Стан", 105, p -> stateLabel(p.state())));
         productTable.setPrefHeight(230);
+        productTable.setPlaceholder(new Label("Немає даних"));
         productTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
             boolean hasSelection = selected != null;
             interestButton.setDisable(!hasSelection);
@@ -144,6 +145,7 @@ public class ProductsTab {
             }
         });
         reconciliationTable.getColumns().add(statusCol);
+        reconciliationTable.setPlaceholder(new Label("Немає даних"));
         VBox.setVgrow(reconciliationTable, Priority.ALWAYS);
 
         root.getChildren().addAll(

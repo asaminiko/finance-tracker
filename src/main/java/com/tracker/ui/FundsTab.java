@@ -101,6 +101,7 @@ public class FundsTab {
             }
         });
         fundTable.getColumns().add(progressCol);
+        fundTable.setPlaceholder(new Label("Немає даних"));
         VBox.setVgrow(fundTable, Priority.ALWAYS);
 
         root.getChildren().addAll(actions, new Label("Цільові фонди"), fundTable);

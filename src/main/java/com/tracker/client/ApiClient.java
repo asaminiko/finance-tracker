@@ -5,6 +5,7 @@ import com.tracker.domain.Account;
 import com.tracker.domain.Category;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.BalancesResponse;
+import com.tracker.service.dto.CategoryReport;
 import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ContributionRequest;
 import com.tracker.service.dto.FundRequest;
@@ -132,5 +133,20 @@ public class ApiClient {
         }
         String query = params.isEmpty() ? "" : "?" + String.join("&", params);
         return gateway.get("/transactions" + query, TransactionsResponse.class);
+    }
+
+    public CategoryReport categoryReport(String kind, LocalDate from, LocalDate to) {
+        List<String> params = new ArrayList<>();
+        if (kind != null && !kind.isBlank()) {
+            params.add("kind=" + kind);
+        }
+        if (from != null) {
+            params.add("from=" + from);
+        }
+        if (to != null) {
+            params.add("to=" + to);
+        }
+        String query = params.isEmpty() ? "" : "?" + String.join("&", params);
+        return gateway.get("/reports/category" + query, CategoryReport.class);
     }
 }

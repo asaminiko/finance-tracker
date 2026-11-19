@@ -111,6 +111,7 @@ public class AccountsTab {
         balanceTree.getColumns().add(amountColumn);
         balanceTree.setShowRoot(false);
         balanceTree.setPrefHeight(210);
+        balanceTree.setPlaceholder(new Label("Немає даних"));
 
         templateTable.getColumns().add(textColumn("Назва", 110, TemplateView::name));
         templateTable.getColumns().add(textColumn("Рахунок", 110, TemplateView::account));
@@ -120,6 +121,7 @@ public class AccountsTab {
         templateTable.getColumns().add(textColumn("Наступна дата", 100, t -> t.nextRunDate().toString()));
         templateTable.getColumns().add(textColumn("Опис", 120, TemplateView::description));
         templateTable.setPrefHeight(210);
+        templateTable.setPlaceholder(new Label("Немає даних"));
 
         VBox balancesBox = new VBox(6, new Label("Залишки по рахунках"), balanceTree, totalLabel);
         balancesBox.setPrefWidth(340);
@@ -150,6 +152,7 @@ public class AccountsTab {
         transactionTable.getColumns().add(textColumn("Тип", 120, t -> typeLabel(t.type())));
         transactionTable.getColumns().add(textColumn("Сума, UAH", 120, t -> money(t.amount())));
         transactionTable.getColumns().add(textColumn("Опис", 260, TransactionView::description));
+        transactionTable.setPlaceholder(new Label("Немає даних"));
         VBox.setVgrow(transactionTable, Priority.ALWAYS);
 
         root.getChildren().addAll(actions, topPane, filter, transactionTable);

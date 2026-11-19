@@ -94,6 +94,7 @@ public class ReceiptsTab {
         receiptTable.getColumns().add(column(receiptTable, "Рахунок", 170, ReceiptView::account));
         receiptTable.getColumns().add(column(receiptTable, "Сума, UAH", 110, r -> money(r.total())));
         receiptTable.getColumns().add(column(receiptTable, "Скан", 70, r -> r.hasScan() ? "Так" : "Ні"));
+        receiptTable.setPlaceholder(new Label("Немає даних"));
         receiptTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
             scanButton.setDisable(selected == null || !selected.hasScan());
             itemTable.setItems(FXCollections.observableArrayList(
@@ -103,6 +104,7 @@ public class ReceiptsTab {
         itemTable.getColumns().add(column(itemTable, "Позиція", 220, ReceiptItemView::name));
         itemTable.getColumns().add(column(itemTable, "Категорія", 160, ReceiptItemView::category));
         itemTable.getColumns().add(column(itemTable, "Сума, UAH", 110, i -> money(i.amount())));
+        itemTable.setPlaceholder(new Label("Немає даних"));
 
         VBox left = new VBox(6, new Label("Чеки"), receiptTable);
         VBox right = new VBox(6, new Label("Позиції вибраного чека"), itemTable);
