@@ -13,4 +13,12 @@ public record Transaction(
         TransactionType type,
         SourceType sourceType,
         Long sourceId) {
+
+    public Transaction copy(LocalDate newDate) {
+        return new Transaction(null, newDate, amount, account, category, description, type, sourceType, sourceId);
+    }
+
+    public Transaction copy() {
+        return copy(date);
+    }
 }
