@@ -6,6 +6,9 @@ import com.tracker.domain.Category;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.BalancesResponse;
 import com.tracker.service.dto.CategoryRequest;
+import com.tracker.service.dto.ContributionRequest;
+import com.tracker.service.dto.FundRequest;
+import com.tracker.service.dto.FundView;
 import com.tracker.service.dto.InterestRequest;
 import com.tracker.service.dto.ProductRequest;
 import com.tracker.service.dto.ProductView;
@@ -31,6 +34,8 @@ public class ApiClient {
     private static final Type RECEIPT_LIST = new TypeToken<List<ReceiptView>>() {
     }.getType();
     private static final Type TEMPLATE_LIST = new TypeToken<List<TemplateView>>() {
+    }.getType();
+    private static final Type FUND_LIST = new TypeToken<List<FundView>>() {
     }.getType();
     private static final Type PRODUCT_LIST = new TypeToken<List<ProductView>>() {
     }.getType();
@@ -83,6 +88,18 @@ public class ApiClient {
 
     public TemplateRunResponse runTemplates() {
         return gateway.post("/templates/run", Map.of(), TemplateRunResponse.class);
+    }
+
+    public FundView createFund(FundRequest request) {
+        return gateway.post("/funds", request, FundView.class);
+    }
+
+    public List<FundView> funds() {
+        return gateway.get("/funds", FUND_LIST);
+    }
+
+    public TransactionView contributeToFund(long fundId, ContributionRequest request) {
+        return gateway.post("/funds/" + fundId + "/contribute", request, TransactionView.class);
     }
 
     public ProductView createProduct(ProductRequest request) {

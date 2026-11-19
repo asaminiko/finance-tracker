@@ -36,12 +36,17 @@ public class AppFx extends Application {
         ProductsTab productsTab = new ProductsTab(api, async, accountsTab::refreshAll);
         Tab products = new Tab("Вклади/Кредити", productsTab.view());
         products.setClosable(false);
-        TabPane tabs = new TabPane(tab, receipts, products);
+        FundsTab fundsTab = new FundsTab(api, async, accountsTab::refreshAll);
+        Tab funds = new Tab("Фонди", fundsTab.view());
+        funds.setClosable(false);
+        TabPane tabs = new TabPane(tab, receipts, products, funds);
         tabs.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
             if (selected == receipts) {
                 receiptsTab.refreshAll();
             } else if (selected == products) {
                 productsTab.refreshAll();
+            } else if (selected == funds) {
+                fundsTab.refreshAll();
             }
         });
 
@@ -55,5 +60,6 @@ public class AppFx extends Application {
         accountsTab.refreshAll();
         receiptsTab.refreshAll();
         productsTab.refreshAll();
+        fundsTab.refreshAll();
     }
 }
