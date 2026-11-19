@@ -12,6 +12,8 @@ import com.tracker.service.LedgerService;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ErrorResponse;
+import com.tracker.service.dto.ReceiptRequest;
+import com.tracker.service.dto.ScanContent;
 import com.tracker.service.dto.TransactionRequest;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -67,6 +69,16 @@ public class Api {
             ctx.json(ledger.listTransactions(from, to));
         }));
 
+        app.post("/receipts", tx(ctx -> {
+            ReceiptRequest request = parseBody(ctx, ReceiptRequest.class);
+            ctx.status(HttpStatus.CREATED).json(ledger.addReceipt(request));
+        }));
+        app.get("/receipts", tx(ctx -> ctx.json(ledger.listReceipts())));
+        app.get("/receipts/{id}/scan", tx(ctx -> {
+            ScanContent scan = ledger.receiptScan(parseId(ctx.pathParam("id")));
+            ctx.contentType(scan.contentType()).result(scan.bytes());
+        }));
+
         app.exception(ValidationException.class, (e, ctx) -> error(ctx, HttpStatus.BAD_REQUEST, "VALIDATION", e));
         app.exception(NotFoundException.class, (e, ctx) -> error(ctx, HttpStatus.NOT_FOUND, "NOT_FOUND", e));
         app.exception(BusinessRuleException.class,
@@ -120,6 +132,14 @@ public class Api {
             return value;
         } catch (JsonParseException e) {
             throw new ValidationException("Некоректні дані запиту");
+        }
+    }
+
+    private static long parseId(String raw) {
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new ValidationException("Некоректний ідентифікатор: " + raw);
         }
     }
 

@@ -10,35 +10,54 @@ import com.tracker.domain.TransactionType;
 import com.tracker.domain.ValidationException;
 import com.tracker.repo.AccountRepository;
 import com.tracker.repo.CategoryRepository;
+import com.tracker.repo.ReceiptRepository;
+import com.tracker.repo.ScanStore;
 import com.tracker.repo.TransactionRepository;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.BalanceItem;
 import com.tracker.service.dto.BalancesResponse;
 import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.FlyweightStats;
+import com.tracker.service.dto.ReceiptItemRequest;
+import com.tracker.service.dto.ReceiptItemView;
+import com.tracker.service.dto.ReceiptRequest;
+import com.tracker.service.dto.ReceiptView;
+import com.tracker.service.dto.ScanContent;
 import com.tracker.service.dto.TransactionRequest;
 import com.tracker.service.dto.TransactionView;
 import com.tracker.service.dto.TransactionsResponse;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 
 public class LedgerService {
+
+    private static final int MAX_SCAN_BYTES = 5 * 1024 * 1024;
 
     private final AccountRepository accounts;
     private final CategoryRepository categories;
     private final TransactionRepository transactions;
     private final FlyweightFactory flyweights;
+    private final ReceiptRepository receipts;
+    private final ScanStore scans;
 
     public LedgerService(
             AccountRepository accounts,
             CategoryRepository categories,
             TransactionRepository transactions,
-            FlyweightFactory flyweights) {
+            FlyweightFactory flyweights,
+            ReceiptRepository receipts,
+            ScanStore scans) {
         this.accounts = accounts;
         this.categories = categories;
         this.transactions = transactions;
         this.flyweights = flyweights;
+        this.receipts = receipts;
+        this.scans = scans;
     }
 
     public Account createAccount(AccountRequest request) {
@@ -114,6 +133,138 @@ public class LedgerService {
                 .toList();
         return new TransactionsResponse(
                 items, new FlyweightStats(flyweights.transactionsLoaded(), flyweights.poolSize()));
+    }
+
+    public ReceiptView addReceipt(ReceiptRequest request) {
+        LocalDate date = Validation.date(request.date());
+        String shop = Validation.requireText(request.shop(), "Вкажіть магазин");
+        requireMaxLength(shop, 50, "Назва магазину не може перевищувати 50 символів");
+        if (request.accountId() == null) {
+            throw new ValidationException("Оберіть рахунок");
+        }
+        if (request.items() == null || request.items().isEmpty()) {
+            throw new ValidationException("Додайте хоча б одну позицію чека");
+        }
+        Account account = accounts.find(request.accountId())
+                .orElseThrow(() -> new NotFoundException("Рахунок не знайдено"));
+        List<ReceiptLine> lines = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO.setScale(2);
+        int number = 0;
+        for (ReceiptItemRequest item : request.items()) {
+            number++;
+            if (item == null) {
+                throw new ValidationException("Позиція " + number + ": відсутні дані");
+            }
+            String name = item.name() == null || item.name().isBlank()
+                    ? null
+                    : item.name().trim();
+            if (name == null) {
+                throw new ValidationException("Позиція " + number + ": вкажіть назву");
+            }
+            requireMaxLength(name, 60, "Позиція " + number + ": назва не може перевищувати 60 символів");
+            BigDecimal amount = Validation.positiveMoney(item.amount(), "Позиція " + number + ": вкажіть суму");
+            if (item.categoryId() == null) {
+                throw new ValidationException("Позиція " + number + ": оберіть категорію");
+            }
+            Category category = categories.find(item.categoryId())
+                    .orElseThrow(() -> new NotFoundException("Категорію не знайдено"));
+            if (category.isSystem()) {
+                throw new ValidationException("Позиція " + number + ": системну категорію не можна використовувати");
+            }
+            total = total.add(amount);
+            lines.add(new ReceiptLine(name, amount, category));
+        }
+        Validation.money(total, "Вкажіть суму");
+        String scanFile = null;
+        byte[] scanBytes = null;
+        boolean hasScanBase64 = request.scanBase64() != null;
+        boolean hasScanExt = request.scanExt() != null;
+        if (hasScanBase64 != hasScanExt) {
+            throw new ValidationException("Скан і його розширення мають бути вказані разом");
+        }
+        if (hasScanBase64) {
+            scanBytes = decodeScan(request.scanBase64());
+            String ext = request.scanExt().trim().toLowerCase(Locale.ROOT);
+            if (!isImage(ext, scanBytes)) {
+                throw new ValidationException("Некоректний файл зображення");
+            }
+            scanFile = UUID.randomUUID() + "." + ext;
+        }
+        if (scanFile != null) {
+            scans.write(scanFile, scanBytes);
+        }
+        try {
+            long receiptId = receipts.insert(account.id(), date, shop, scanFile);
+            for (ReceiptLine line : lines) {
+                receipts.insertItem(receiptId, line.name(), line.amount(), line.category().id());
+                transactions.insert(new Transaction(
+                        null,
+                        date,
+                        line.amount().negate(),
+                        account,
+                        line.category(),
+                        shop + ": " + line.name(),
+                        TransactionType.EXPENSE,
+                        SourceType.RECEIPT,
+                        receiptId));
+            }
+            List<ReceiptItemView> items = lines.stream()
+                    .map(l -> new ReceiptItemView(l.name(), l.category().name(), l.amount()))
+                    .toList();
+            return new ReceiptView(receiptId, date, shop, account.name(), total, scanFile != null, items);
+        } catch (RuntimeException e) {
+            if (scanFile != null) {
+                scans.deleteQuietly(scanFile);
+            }
+            throw e;
+        }
+    }
+
+    public List<ReceiptView> listReceipts() {
+        return receipts.list();
+    }
+
+    public ScanContent receiptScan(long id) {
+        if (!receipts.exists(id)) {
+            throw new NotFoundException("Чек не знайдено");
+        }
+        String fileName = receipts.findScanFile(id)
+                .orElseThrow(() -> new NotFoundException("Скан чека відсутній"));
+        byte[] bytes = scans.read(fileName)
+                .orElseThrow(() -> new NotFoundException("Файл скану не знайдено"));
+        String contentType = fileName.endsWith(".png") ? "image/png" : "image/jpeg";
+        return new ScanContent(bytes, contentType);
+    }
+
+    private static byte[] decodeScan(String base64) {
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(base64);
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Некоректний файл зображення");
+        }
+        if (bytes.length == 0) {
+            throw new ValidationException("Скан порожній");
+        }
+        if (bytes.length > MAX_SCAN_BYTES) {
+            throw new ValidationException("Скан перевищує 5 МБ");
+        }
+        return bytes;
+    }
+
+    private static boolean isImage(String ext, byte[] bytes) {
+        if ("jpg".equals(ext)) {
+            return bytes.length >= 3
+                    && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF;
+        }
+        if ("png".equals(ext)) {
+            return bytes.length >= 4
+                    && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
+        }
+        return false;
+    }
+
+    private record ReceiptLine(String name, BigDecimal amount, Category category) {
     }
 
     private static void requireMaxLength(String value, int max, String message) {
