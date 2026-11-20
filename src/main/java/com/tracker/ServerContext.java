@@ -14,8 +14,12 @@ import com.tracker.repo.TemplateRepository;
 import com.tracker.repo.TransactionManager;
 import com.tracker.repo.TransactionRepository;
 import com.tracker.service.DepositService;
+import com.tracker.service.ExchangeService;
 import com.tracker.service.LedgerService;
 import com.tracker.service.ReportService;
+import com.tracker.transfer.ExcelStorage;
+import com.tracker.transfer.ImportValidator;
+import com.tracker.transfer.SQLiteStorage;
 import java.time.Clock;
 
 public class ServerContext {
@@ -29,6 +33,7 @@ public class ServerContext {
     public final LedgerService ledger;
     public final DepositService deposit;
     public final ReportService report;
+    public final ExchangeService exchange;
 
     public ServerContext(Config config, Clock clock) {
         this.config = config;
@@ -49,5 +54,7 @@ public class ServerContext {
                 accounts, categories, transactions, flyweights, receipts, scans, templates, funds, clock);
         this.deposit = new DepositService(products, ledger, ledger, config.interestTaxRate(), clock);
         this.report = new ReportService(ledger);
+        this.exchange = new ExchangeService(
+                ledger, ledger, new ExcelStorage(), new SQLiteStorage(), new ImportValidator());
     }
 }

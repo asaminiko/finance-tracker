@@ -181,6 +181,7 @@ public class LedgerService implements LedgerQueries {
         return view(id, transaction);
     }
 
+    @Override
     public TransactionsResponse listTransactions(LocalDate from, LocalDate to) {
         Validation.period(from, to);
         List<TransactionView> items = transactions.list(from, to).stream()
@@ -188,6 +189,13 @@ public class LedgerService implements LedgerQueries {
                 .toList();
         return new TransactionsResponse(
                 items, new FlyweightStats(flyweights.transactionsLoaded(), flyweights.poolSize()));
+    }
+
+    public int importTransactions(List<TransactionRequest> requests) {
+        for (TransactionRequest request : requests) {
+            addTransaction(request);
+        }
+        return requests.size();
     }
 
     public ReceiptView addReceipt(ReceiptRequest request) {

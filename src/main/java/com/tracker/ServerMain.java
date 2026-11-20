@@ -18,6 +18,7 @@ public class ServerMain {
                     context.ledger,
                     context.deposit,
                     context.report,
+                    context.exchange,
                     context.database,
                     context.txManager,
                     context.gson);

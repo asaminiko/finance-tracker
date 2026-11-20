@@ -9,12 +9,14 @@ import com.tracker.domain.ValidationException;
 import com.tracker.repo.Database;
 import com.tracker.repo.TransactionManager;
 import com.tracker.service.DepositService;
+import com.tracker.service.ExchangeService;
 import com.tracker.service.LedgerService;
 import com.tracker.service.ReportService;
 import com.tracker.service.dto.AccountRequest;
 import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ContributionRequest;
 import com.tracker.service.dto.ErrorResponse;
+import com.tracker.service.dto.ExportContent;
 import com.tracker.service.dto.FundRequest;
 import com.tracker.service.dto.InterestRequest;
 import com.tracker.service.dto.ProductRequest;
@@ -39,6 +41,7 @@ public class Api {
     private final LedgerService ledger;
     private final DepositService deposit;
     private final ReportService report;
+    private final ExchangeService exchange;
     private final Database db;
     private final TransactionManager txManager;
     private final Gson gson;
@@ -47,12 +50,14 @@ public class Api {
             LedgerService ledger,
             DepositService deposit,
             ReportService report,
+            ExchangeService exchange,
             Database db,
             TransactionManager txManager,
             Gson gson) {
         this.ledger = ledger;
         this.deposit = deposit;
         this.report = report;
+        this.exchange = exchange;
         this.db = db;
         this.txManager = txManager;
         this.gson = gson;
@@ -138,6 +143,18 @@ public class Api {
             LocalDate from = parseDate(ctx.queryParam("from"));
             LocalDate to = parseDate(ctx.queryParam("to"));
             ctx.json(report.categoryReport(kind, from, to));
+        }));
+
+        app.get("/export", tx(ctx -> {
+            String format = ctx.queryParam("format");
+            LocalDate from = parseDate(ctx.queryParam("from"));
+            LocalDate to = parseDate(ctx.queryParam("to"));
+            ExportContent exported = exchange.exportTransactions(format, from, to);
+            ctx.contentType(exported.contentType()).result(exported.bytes());
+        }));
+        app.post("/import", tx(ctx -> {
+            String format = ctx.queryParam("format");
+            ctx.json(exchange.importTransactions(format, ctx.bodyAsBytes()));
         }));
 
         app.exception(ValidationException.class, (e, ctx) -> error(ctx, HttpStatus.BAD_REQUEST, "VALIDATION", e));
