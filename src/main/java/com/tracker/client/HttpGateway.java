@@ -61,6 +61,15 @@ public class HttpGateway {
         return sendBytes(request);
     }
 
+    public <T> T postBytes(String path, byte[] body, Type type) {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .timeout(Duration.ofSeconds(30))
+                .header("Content-Type", "application/octet-stream")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                .build();
+        return gson.fromJson(send(request), type);
+    }
+
     private String send(HttpRequest request) {
         return new String(sendBytes(request), StandardCharsets.UTF_8);
     }

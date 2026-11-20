@@ -10,6 +10,7 @@ import com.tracker.service.dto.CategoryRequest;
 import com.tracker.service.dto.ContributionRequest;
 import com.tracker.service.dto.FundRequest;
 import com.tracker.service.dto.FundView;
+import com.tracker.service.dto.ImportResponse;
 import com.tracker.service.dto.InterestRequest;
 import com.tracker.service.dto.ProductRequest;
 import com.tracker.service.dto.ProductView;
@@ -148,5 +149,21 @@ public class ApiClient {
         }
         String query = params.isEmpty() ? "" : "?" + String.join("&", params);
         return gateway.get("/reports/category" + query, CategoryReport.class);
+    }
+
+    public byte[] exportTransactions(String format, LocalDate from, LocalDate to) {
+        List<String> params = new ArrayList<>();
+        params.add("format=" + format);
+        if (from != null) {
+            params.add("from=" + from);
+        }
+        if (to != null) {
+            params.add("to=" + to);
+        }
+        return gateway.getBytes("/export?" + String.join("&", params));
+    }
+
+    public ImportResponse importTransactions(String format, byte[] bytes) {
+        return gateway.postBytes("/import?format=" + format, bytes, ImportResponse.class);
     }
 }

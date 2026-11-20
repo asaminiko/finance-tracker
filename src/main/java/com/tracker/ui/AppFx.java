@@ -39,7 +39,7 @@ public class AppFx extends Application {
         FundsTab fundsTab = new FundsTab(api, async, accountsTab::refreshAll);
         Tab funds = new Tab("Фонди", fundsTab.view());
         funds.setClosable(false);
-        ReportsTab reportsTab = new ReportsTab(api, async);
+        ReportsTab reportsTab = new ReportsTab(api, async, accountsTab::refreshAll);
         Tab reports = new Tab("Звіти", reportsTab.view());
         reports.setClosable(false);
         TabPane tabs = new TabPane(tab, receipts, products, funds, reports);
